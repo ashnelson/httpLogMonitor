@@ -1,0 +1,6 @@
+{
+	"StatsIntervalSeconds": 10,
+	"AlertIntervalSeconds": 15,
+	"RecoverIntervalSeconds": 15,
+	"AlertThreshold": 2
+}
