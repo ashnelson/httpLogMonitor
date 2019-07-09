@@ -1,6 +1,9 @@
 {
-	"StatsIntervalSeconds": 10,
-	"AlertIntervalSeconds": 15,
-	"RecoverIntervalSeconds": 15,
-	"AlertThreshold": 2
+	"inputLogFile": "flog.log",
+	"shutdownWaitSeconds": 0,
+	"statsCfg": {
+		"statsIntervalSeconds": 10,
+		"alertIntervalSeconds": 1,
+		"alertThreshold": 2
+	}
 }

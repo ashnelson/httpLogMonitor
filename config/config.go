@@ -4,20 +4,25 @@ import (
 	"encoding/json"
 	"io/ioutil"
 
-	"../log"
+	"github.com/ashnelson/httpLogMonitor/log"
 )
 
-type StatsCfg struct {
-	StatsIntervalSeconds   int
-	AlertIntervalSeconds   int
-	AlertThreshold         int
-	RecoverIntervalSeconds int
+type Config struct {
+	LogFile             string      `json:"inputLogFile"`
+	ShutdownGracePeriod int         `json:"shutdownWaitSeconds"`
+	StatsCfg            StatsConfig `json:"statsCfg"`
 }
 
-func New() StatsCfg {
-	var cfg StatsCfg
+type StatsConfig struct {
+	StatsIntervalSeconds int `json:"statsIntervalSeconds"`
+	AlertIntervalSeconds int `json:"alertIntervalSeconds"`
+	AlertThreshold       int `json:"alertThreshold"`
+}
 
-	cfgFileBytes, err := ioutil.ReadFile("config.json")
+func New(cfgFile string) Config {
+	var cfg Config
+
+	cfgFileBytes, err := ioutil.ReadFile(cfgFile)
 	if err != nil {
 		return logErrAndGetDefaults(err)
 	}
@@ -29,13 +34,16 @@ func New() StatsCfg {
 	return cfg
 }
 
-func logErrAndGetDefaults(err error) StatsCfg {
-	cfg := StatsCfg{
-		StatsIntervalSeconds:   10,
-		AlertIntervalSeconds:   120,
-		AlertThreshold:         100,
-		RecoverIntervalSeconds: 120,
+func logErrAndGetDefaults(err error) Config {
+	cfg := Config{
+		LogFile:             "/tmp/access.log",
+		ShutdownGracePeriod: 3,
+		StatsCfg: StatsConfig{
+			StatsIntervalSeconds: 10,
+			AlertIntervalSeconds: 120,
+			AlertThreshold:       100,
+		},
 	}
-	log.PrintError("Failed to load configs from file\n\tDetails: %s\nUsing default values:\n\t%+v", err, cfg)
+	log.LogError("Failed to load configs from file; %s\n\tUsing default values:\n\t\t%+v", err, cfg)
 	return cfg
 }

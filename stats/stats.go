@@ -5,8 +5,8 @@ import (
 	"strings"
 	"sync"
 
-	"../config"
-	"../log"
+	"github.com/ashnelson/httpLogMonitor/config"
+	"github.com/ashnelson/httpLogMonitor/log"
 )
 
 const (
@@ -20,7 +20,7 @@ const (
 )
 
 var (
-	LogCh           chan string
+	logCh           chan string
 	recordedTraffic sections
 )
 
@@ -43,11 +43,11 @@ type section struct {
 	lock sync.Mutex
 }
 
-// InitializeRecorder takes a StatsCfg and initializes the log chan and
+// InitializeRecorder takes a StatsConfig and initializes the log chan and
 // recordedTraffic object and starts a goroutine to read log lines from the
 // log chan
-func InitializeRecorder(cfg config.StatsCfg) {
-	LogCh = make(chan string, 128)
+func InitializeRecorder(cfg config.StatsConfig) {
+	logCh = make(chan string, 128)
 	recordedTraffic = sections{
 		sections: make(map[string]*section, 11),
 	}
@@ -57,6 +57,19 @@ func InitializeRecorder(cfg config.StatsCfg) {
 	initializeMonitors(cfg)
 }
 
+// RecordLog processes and records the provided log line
+func RecordLog(logLn string) {
+	logLn = strings.TrimSpace(logLn)
+	if logLn != "" {
+		logCh <- logLn
+	}
+}
+
+// Shutdown handles all shutdown functionality such as closing the log channel
+func Shutdown() {
+	close(logCh)
+}
+
 // logRecorder decodes the log line and records the log in the Sections map.
 // If the Section doesn't already exist in the Sections map it will be created.
 func logRecorder() {
@@ -64,18 +77,12 @@ func logRecorder() {
 
 	for {
 		select {
-		case logLn = <-LogCh:
+		case logLn = <-logCh:
 			go recordLogLine(logLn)
 		}
 	}
 
 	return
-}
-
-// resetTrafficRecorder resets all of the sections for the traffic recorder back
-// to their zero values
-func resetTrafficRecorder() {
-	recordedTraffic.sections = make(map[string]*section, 11)
 }
 
 // recordLogLine gets the correct section from recordedTraffic or creates one if
@@ -87,34 +94,34 @@ func recordLogLine(logLn string) {
 
 	// Safely get the section
 	recordedTraffic.lock.Lock()
-	sctn, ok := recordedTraffic.sections[sectionName]
+	curSection, ok := recordedTraffic.sections[sectionName]
 	if !ok {
-		sctn = &section{
+		curSection = &section{
 			methods:     make(map[string]int, 3),
 			users:       make(map[string]int, 11),
 			remoteHosts: make(map[string]int, 11),
 			statusCode:  make(map[string]int, 5),
 		}
-		recordedTraffic.sections[sectionName] = sctn
+		recordedTraffic.sections[sectionName] = curSection
 	}
 	recordedTraffic.lock.Unlock()
 
 	// Get the log line as a slice
 	reqBytes, err := strconv.Atoi(logFields[bytesIdx])
 	if err != nil {
-		log.PrintError("Failed to cast request bytes (%s) to integer; Details: %s", logFields[bytesIdx], err)
+		log.LogError("Failed to cast request bytes (%s) to integer; Details: %s", logFields[bytesIdx], err)
 	}
 
 	// Safely update the section
-	sctn.lock.Lock()
-	defer sctn.lock.Unlock()
+	curSection.lock.Lock()
+	defer curSection.lock.Unlock()
 
-	sctn.totalCount++
-	sctn.totalBytes = sctn.totalBytes + reqBytes
-	sctn.methods[getRequestMethod(logFields[requestIdx])]++
-	sctn.users[logFields[authUserIdx]]++
-	sctn.remoteHosts[logFields[remoteHostsIdx]]++
-	sctn.statusCode[logFields[statusIdx]]++
+	curSection.totalCount++
+	curSection.totalBytes = curSection.totalBytes + reqBytes
+	curSection.methods[getRequestMethod(logFields[requestIdx])]++
+	curSection.users[logFields[authUserIdx]]++
+	curSection.remoteHosts[logFields[remoteHostsIdx]]++
+	curSection.statusCode[logFields[statusIdx]]++
 }
 
 // splitLogLine parses the log line into the separate fields and returns them
