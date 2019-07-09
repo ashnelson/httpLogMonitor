@@ -174,7 +174,7 @@ func getSectionName(reqStr string) string {
 		return ""
 	}
 
-	return splitPath[1]
+	return "/" + splitPath[1]
 }
 
 // getRequestMethod parses the reqStr and returns the HTTP method string
