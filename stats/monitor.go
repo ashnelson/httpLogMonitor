@@ -22,12 +22,10 @@ func initializeMonitors(cfg config.StatsConfig) {
 func monitorStats(intervalSeconds int) {
 	go func() {
 		ticker := time.NewTicker(time.Second * time.Duration(intervalSeconds))
-
 		for range ticker.C {
 			recordedTraffic.lock.Lock()
 			// Log all traffic from the current interval
 			for name, curSection := range recordedTraffic.sections {
-				atomic.AddInt32(&trafficCount, int32(curSection.totalCount))
 				printSection(name, curSection)
 			}
 
@@ -44,8 +42,10 @@ func monitorStats(intervalSeconds int) {
 // specified threshold in which case a recovery message will be printed.
 func monitorAlerts(intervalSeconds, alertThreshold int) {
 	var (
+		// The total count of hits for each interval
 		totalHitsPerInterval int32
-		alertTriggered       bool
+		// The number of times the alert threshold was exceeded for the interval
+		rateExceededCnt int32
 	)
 
 	// Monitor the rate per second
@@ -54,17 +54,16 @@ func monitorAlerts(intervalSeconds, alertThreshold int) {
 
 		ticker := time.NewTicker(time.Second)
 		for range ticker.C {
+			// Load total traffic and reset for next interval
 			cnt = atomic.LoadInt32(&trafficCount)
+			atomic.StoreInt32(&trafficCount, int32(0))
 
 			if int(cnt) > alertThreshold {
-				alertTriggered = true
+				atomic.AddInt32(&rateExceededCnt, int32(1))
 				atomic.AddInt32(&totalHitsPerInterval, cnt)
-			} else if alertTriggered {
-				alertTriggered = false
+			} else {
 				atomic.StoreInt32(&totalHitsPerInterval, int32(0))
 			}
-
-			atomic.StoreInt32(&trafficCount, int32(0))
 		}
 	}()
 
@@ -72,21 +71,27 @@ func monitorAlerts(intervalSeconds, alertThreshold int) {
 	go func() {
 		const alertTimeFmt = "01-02-2006 15:04:05"
 		var (
-			curTime       string
-			needToRecover bool
+			curTime            string
+			needToRecover      bool
+			rateCnt, totalHits int32
 		)
 
 		ticker := time.NewTicker(time.Duration(intervalSeconds) * time.Second)
 		for range ticker.C {
 			curTime = time.Now().Format(alertTimeFmt)
+			rateCnt = atomic.LoadInt32(&rateExceededCnt)
+			totalHits = atomic.LoadInt32(&totalHitsPerInterval)
 
-			if alertTriggered {
+			if int(rateCnt) >= intervalSeconds {
 				needToRecover = true
-				log.LogAlert("High traffic generated an alert; nbrHits: %d, triggeredAt: %s", totalHitsPerInterval, curTime)
+				log.LogAlert("High traffic generated an alert; nbrHits: %d, triggeredAt: %s", totalHits, curTime)
 			} else if needToRecover {
 				needToRecover = false
 				log.LogAlert("Alert recovered at %s", curTime)
 			}
+
+			// Reset the count for the next interval
+			atomic.StoreInt32(&rateExceededCnt, int32(0))
 		}
 	}()
 }

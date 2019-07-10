@@ -37,7 +37,7 @@ func main() {
 		return
 	}
 
-	// Make sure to release file handlers if application is terminated
+	// Release file handle and shutdown stats monitoring if application is terminated
 	gracefulShutdown(cfg.ShutdownGracePeriod, func() {
 		tailFile.Cleanup()
 		stats.Shutdown()

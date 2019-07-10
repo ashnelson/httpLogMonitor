@@ -7,18 +7,23 @@ import (
 	"github.com/ashnelson/httpLogMonitor/log"
 )
 
+// Config contains all of the application's configuration settings
 type Config struct {
 	LogFile             string      `json:"inputLogFile"`
 	ShutdownGracePeriod int         `json:"shutdownWaitSeconds"`
 	StatsCfg            StatsConfig `json:"statsCfg"`
 }
 
+// StatsConfig contains all of the configuration settings for the stats and
+// alerts monitors
 type StatsConfig struct {
 	StatsIntervalSeconds int `json:"statsIntervalSeconds"`
 	AlertIntervalSeconds int `json:"alertIntervalSeconds"`
 	AlertThreshold       int `json:"alertThreshold"`
 }
 
+// New reads the specified config file and returns it. If, for some reason, the
+// config file cannot be read, a default config will be returned.
 func New(cfgFile string) Config {
 	var cfg Config
 

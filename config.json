@@ -1,9 +1,9 @@
 {
-	"inputLogFile": "flog.log",
-	"shutdownWaitSeconds": 0,
+	"inputLogFile": "/tmp/access.log",
+	"shutdownWaitSeconds": 3,
 	"statsCfg": {
 		"statsIntervalSeconds": 10,
-		"alertIntervalSeconds": 1,
-		"alertThreshold": 2
+		"alertIntervalSeconds": 120,
+		"alertThreshold": 10
 	}
 }

@@ -4,11 +4,13 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	"github.com/ashnelson/httpLogMonitor/config"
 	"github.com/ashnelson/httpLogMonitor/log"
 )
 
+// The indexes for accessing the log line after it's split into a slice
 const (
 	remoteHostsIdx = iota
 	rfc931Idx
@@ -89,6 +91,9 @@ func logRecorder() {
 // one doesn't already exist and updates the section data with the info from the
 // provided log line
 func recordLogLine(logLn string) {
+	// Increment traffic count for alert monitoring
+	atomic.AddInt32(&trafficCount, int32(1))
+
 	logFields := splitLogLine(logLn)
 	sectionName := getSectionName(logFields[requestIdx])
 
